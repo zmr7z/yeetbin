@@ -1,0 +1,8 @@
+荷物ぶん投げの物理バカゲー作った。
+フリックしてトラックにぶち込むだけ。スマホでそのまま遊べる。
+
+ぶっ飛び宅配 YEET便
+https://zmr7z.github.io/yeetbin/
+
+ludofolio
+#indiedev #webgame
