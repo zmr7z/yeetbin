@@ -1,5 +1,5 @@
 (() => {
-  const { Engine, Render, Runner, Bodies, Body, Composite, Events, Mouse, MouseConstraint, Query, World } =
+  const { Engine, Render, Runner, Bodies, Body, Composite, Events, Mouse, MouseConstraint, World } =
     Matter;
 
   const canvas = document.getElementById("game");
@@ -11,6 +11,7 @@
   const finalScoreEl = document.getElementById("final-score");
   const flavorEl = document.getElementById("flavor");
   const resultTitleEl = document.getElementById("result-title");
+  const leadEl = document.getElementById("lead");
 
   const ROUND_SEC = 30;
   const flavors = [
@@ -21,11 +22,17 @@
     "トラック「もう積みすぎだぞ」 君「まだいける」",
   ];
 
+  const isCoarse = () => window.matchMedia("(pointer: coarse)").matches;
+  const controlHint = () =>
+    isCoarse() ? "荷物をつまんでフリック！" : "荷物をドラッグして投げる！（マウス）";
+  const throwHint = () => (isCoarse() ? "離してぶん投げる！" : "離すと飛びます！");
+
   let W = 0;
   let H = 0;
   let engine;
   let render;
   let runner;
+  let mouse;
   let mouseConstraint;
   let truckSensor;
   let ground;
@@ -37,12 +44,13 @@
   let grabbed = null;
   let scoredIds = new Set();
   let packageCount = 0;
+  let dragTrail = [];
 
   function size() {
     const app = document.getElementById("app");
     const rect = app.getBoundingClientRect();
-    W = Math.floor(rect.width);
-    H = Math.floor(rect.height);
+    W = Math.max(1, Math.floor(rect.width));
+    H = Math.max(1, Math.floor(rect.height));
     canvas.width = W;
     canvas.height = H;
     if (render) {
@@ -53,6 +61,17 @@
       render.bounds.max.x = W;
       render.bounds.max.y = H;
     }
+    if (mouse) {
+      // Keep pointer coords aligned with canvas CSS pixels (PC HiDPI fix)
+      mouse.pixelRatio = 1;
+    }
+  }
+
+  function syncLead() {
+    if (!leadEl) return;
+    leadEl.textContent = isCoarse()
+      ? "物理が狂った荷物を、トラックの荷台へぶち込め。スマホでフリック。"
+      : "物理が狂った荷物を、トラックの荷台へぶち込め。PCはマウス、スマホはフリック。";
   }
 
   function makeWorld() {
@@ -66,7 +85,8 @@
         height: H,
         wireframes: false,
         background: "transparent",
-        pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        // 1 keeps Matter mouse mapping correct on PC retina displays
+        pixelRatio: 1,
       },
     });
 
@@ -81,9 +101,8 @@
     const left = Bodies.rectangle(-20, H / 2, 40, H * 2, wallOpts);
     const right = Bodies.rectangle(W + 20, H / 2, 40, H * 2, wallOpts);
 
-    // Truck body (right side)
-    const tw = Math.min(150, W * 0.34);
-    const th = Math.min(110, H * 0.18);
+    const tw = Math.min(170, Math.max(120, W * 0.28));
+    const th = Math.min(120, H * 0.18);
     const tx = W - tw * 0.55;
     const ty = floorY - th * 0.55 - 8;
 
@@ -116,7 +135,6 @@
       label: "goal",
     });
 
-    // Ramp / dock
     const ramp = Bodies.rectangle(W * 0.42, floorY - 10, W * 0.35, 16, {
       isStatic: true,
       angle: -0.12,
@@ -136,14 +154,18 @@
       ramp,
     ]);
 
-    const mouse = Mouse.create(canvas);
+    mouse = Mouse.create(canvas);
+    mouse.pixelRatio = 1;
     mouse.element.removeEventListener("mousewheel", mouse.mousewheel);
     mouse.element.removeEventListener("DOMMouseScroll", mouse.mousewheel);
+
+    // Slightly snappier grab on mouse (PC), softer on touch
+    const fine = !isCoarse();
     mouseConstraint = MouseConstraint.create(engine, {
       mouse,
       constraint: {
-        stiffness: 0.18,
-        damping: 0.12,
+        stiffness: fine ? 0.22 : 0.18,
+        damping: fine ? 0.1 : 0.12,
         render: { visible: false },
       },
     });
@@ -153,21 +175,48 @@
     Events.on(mouseConstraint, "startdrag", (e) => {
       if (!playing) return;
       const body = e.body;
-      if (body && body.label === "package") {
-        grabbed = body;
-        hintEl.textContent = "離してぶん投げる！";
+      if (!body || body.label !== "package") {
+        mouseConstraint.constraint.bodyB = null;
+        mouseConstraint.body = null;
+        return;
+      }
+      grabbed = body;
+      dragTrail = [];
+      canvas.classList.add("grabbing");
+      hintEl.textContent = throwHint();
+    });
+
+    Events.on(engine, "afterUpdate", () => {
+      if (!playing) return;
+      if (grabbed && mouseConstraint.body === grabbed) {
+        dragTrail.push({ x: grabbed.velocity.x, y: grabbed.velocity.y, t: performance.now() });
+        if (dragTrail.length > 8) dragTrail.shift();
+      }
+      const bodies = Composite.allBodies(engine.world);
+      for (const b of bodies) {
+        if (b.label !== "package") continue;
+        if (b.position.y > H + 120 || b.position.x < -120 || b.position.x > W + 120) {
+          Composite.remove(engine.world, b);
+        }
       }
     });
+
     Events.on(mouseConstraint, "enddrag", () => {
+      canvas.classList.remove("grabbing");
       if (!playing) return;
       if (grabbed) {
-        // YEET boost
-        Body.setVelocity(grabbed, {
-          x: grabbed.velocity.x * 1.55,
-          y: grabbed.velocity.y * 1.45,
-        });
+        const boost = isCoarse() ? 1.55 : 1.75;
+        let vx = grabbed.velocity.x;
+        let vy = grabbed.velocity.y;
+        if (dragTrail.length >= 3) {
+          const recent = dragTrail.slice(-3);
+          vx = recent.reduce((s, p) => s + p.x, 0) / recent.length;
+          vy = recent.reduce((s, p) => s + p.y, 0) / recent.length;
+        }
+        Body.setVelocity(grabbed, { x: vx * boost, y: vy * boost * 0.95 });
         Body.setAngularVelocity(grabbed, grabbed.angularVelocity + (Math.random() - 0.5) * 0.4);
         grabbed = null;
+        dragTrail = [];
         hintEl.textContent = "荷台の光ってるとこへ！";
       }
     });
@@ -184,22 +233,9 @@
           score += 1;
           scoreEl.textContent = String(score);
           pulseHint(`+1 配達！（${score}）`);
-          // soft settle into truck
           Body.setVelocity(pkg, { x: pkg.velocity.x * 0.3, y: Math.min(pkg.velocity.y, 2) });
           pkg.render.strokeStyle = "#e8a317";
           pkg.render.lineWidth = 3;
-        }
-      }
-    });
-
-    // Cull fallen packages
-    Events.on(engine, "afterUpdate", () => {
-      if (!playing) return;
-      const bodies = Composite.allBodies(engine.world);
-      for (const b of bodies) {
-        if (b.label !== "package") continue;
-        if (b.position.y > H + 120 || b.position.x < -120 || b.position.x > W + 120) {
-          Composite.remove(engine.world, b);
         }
       }
     });
@@ -241,7 +277,6 @@
         render: { fillStyle: packageColors(), strokeStyle: "#1a1208", lineWidth: 2 },
       });
     }
-    // slight chaos
     Body.setVelocity(body, { x: (Math.random() - 0.3) * 2, y: Math.random() * 1.5 });
     Composite.add(engine.world, body);
   }
@@ -265,7 +300,8 @@
     playing = true;
     scoreEl.textContent = "0";
     timerEl.textContent = String(timeLeft);
-    hintEl.textContent = "荷物をつまんでフリック！";
+    hintEl.textContent = controlHint();
+    canvas.classList.add("playable");
     clearPackages();
     spawnPackage();
     spawnPackage();
@@ -288,6 +324,7 @@
 
   function endRound() {
     playing = false;
+    canvas.classList.remove("playable", "grabbing");
     if (clockId) clearInterval(clockId);
     if (spawnTimer) clearInterval(spawnTimer);
     finalScoreEl.textContent = String(score);
@@ -305,10 +342,7 @@
 
   function rebuild() {
     if (runner) Runner.stop(runner);
-    if (render) {
-      Render.stop(render);
-      // keep canvas node; Matter may have reused it
-    }
+    if (render) Render.stop(render);
     if (engine) {
       World.clear(engine.world, false);
       Engine.clear(engine);
@@ -316,31 +350,56 @@
     makeWorld();
   }
 
-  document.getElementById("btn-start").addEventListener("click", () => {
-    startRound();
-  });
+  document.getElementById("btn-start").addEventListener("click", () => startRound());
   document.getElementById("btn-again").addEventListener("click", () => {
     rebuild();
     startRound();
   });
   document.getElementById("btn-share").addEventListener("click", share);
 
-  window.addEventListener("resize", () => {
-    const wasPlaying = playing;
-    const keepScore = score;
-    const keepTime = timeLeft;
-    rebuild();
-    if (wasPlaying) {
-      playing = true;
-      score = keepScore;
-      timeLeft = keepTime;
-      scoreEl.textContent = String(score);
-      timerEl.textContent = String(timeLeft);
-      spawnPackage();
+  // PC shortcuts (does not affect phone)
+  window.addEventListener("keydown", (e) => {
+    if (e.repeat) return;
+    if (e.code === "Enter" || e.code === "Space") {
+      if (!titleEl.classList.contains("hidden")) {
+        e.preventDefault();
+        startRound();
+      } else if (!resultEl.classList.contains("hidden")) {
+        e.preventDefault();
+        rebuild();
+        startRound();
+      }
+    }
+    if (e.code === "KeyR" && playing) {
+      e.preventDefault();
+      rebuild();
+      startRound();
     }
   });
 
-  // Prevent page scroll / bounce on iOS while playing
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const wasPlaying = playing;
+      const keepScore = score;
+      const keepTime = timeLeft;
+      rebuild();
+      syncLead();
+      if (wasPlaying) {
+        playing = true;
+        score = keepScore;
+        timeLeft = keepTime;
+        scoreEl.textContent = String(score);
+        timerEl.textContent = String(timeLeft);
+        hintEl.textContent = controlHint();
+        canvas.classList.add("playable");
+        spawnPackage();
+      }
+    }, 120);
+  });
+
+  // iOS bounce only when actually touching the canvas
   document.body.addEventListener(
     "touchmove",
     (e) => {
@@ -349,5 +408,7 @@
     { passive: false }
   );
 
+  syncLead();
+  hintEl.textContent = controlHint();
   makeWorld();
 })();
