@@ -113,17 +113,17 @@
       vx = body.velocity.x;
       vy = body.velocity.y;
     }
-    // Clamp so phone flicks stay wild but mouse doesn't go infinite
-    const maxSpeed = isCoarse() ? 48 : 42;
+    // Keep throws playful but not screen-exiting
+    const maxSpeed = isCoarse() ? 22 : 18;
     const sp = Math.hypot(vx, vy);
     if (sp > maxSpeed) {
       vx = (vx / sp) * maxSpeed;
       vy = (vy / sp) * maxSpeed;
     }
-    const boost = isCoarse() ? 0.045 : 0.05;
+    const scale = isCoarse() ? 1.15 : 1.05;
     Body.setStatic(body, false);
-    Body.setVelocity(body, { x: vx * boost * 55, y: vy * boost * 55 });
-    Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.5);
+    Body.setVelocity(body, { x: vx * scale, y: vy * scale });
+    Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.35);
     grabbed = null;
     grabOffset = { x: 0, y: 0 };
     dragSamples = [];
@@ -407,6 +407,34 @@
     hintEl.textContent = "タイムアップ";
   }
 
+  function quitToTitle() {
+    if (grabbed) {
+      try {
+        Body.setStatic(grabbed, false);
+      } catch (_) {
+        /* ignore */
+      }
+      grabbed = null;
+      pointerId = null;
+      dragSamples = [];
+      canvas.classList.remove("grabbing");
+    }
+    playing = false;
+    if (clockId) clearInterval(clockId);
+    if (spawnTimer) clearInterval(spawnTimer);
+    clockId = null;
+    spawnTimer = null;
+    canvas.classList.remove("playable", "grabbing");
+    resultEl.classList.add("hidden");
+    titleEl.classList.remove("hidden");
+    hintEl.textContent = controlHint();
+    score = 0;
+    timeLeft = ROUND_SEC;
+    scoreEl.textContent = "0";
+    timerEl.textContent = String(ROUND_SEC);
+    clearPackages();
+  }
+
   function share() {
     const text = `ぶっ飛び宅配 YEET便で ${score} 件届けた（物理は礼儀を知らない）\n${location.href}`;
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
@@ -440,6 +468,13 @@
 
   window.addEventListener("keydown", (e) => {
     if (e.repeat) return;
+    if (e.code === "Escape") {
+      e.preventDefault();
+      if (playing || !resultEl.classList.contains("hidden")) {
+        quitToTitle();
+      }
+      return;
+    }
     if (e.code === "Enter" || e.code === "Space") {
       if (!titleEl.classList.contains("hidden")) {
         e.preventDefault();
@@ -456,6 +491,8 @@
       startRound();
     }
   });
+
+  document.getElementById("btn-quit")?.addEventListener("click", () => quitToTitle());
 
   let resizeTimer = null;
   window.addEventListener("resize", () => {

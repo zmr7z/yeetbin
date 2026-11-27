@@ -231,6 +231,10 @@ h2 {
   font-size: 1.05rem;
   cursor: pointer;
   touch-action: manipulation;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn.primary {

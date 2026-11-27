@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>更新履歴 — YEET便</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { overflow: auto; }
+    #app { max-width: 640px; height: auto; min-height: 100%; margin: 0 auto; padding: 24px 18px 48px; }
+    .log { position: relative; z-index: 2; }
+    .log h1 { font-family: Bungee, cursive; font-size: 1.6rem; margin: 0 0 8px; }
+    .log a.back { color: var(--amber); font-weight: 700; }
+    .entry { margin: 22px 0; padding-top: 16px; border-top: 1px solid rgba(26,18,8,0.2); }
+    .entry h2 { margin: 0 0 8px; font-size: 1.05rem; color: var(--ink); }
+    .entry ul { margin: 0; padding-left: 1.2rem; color: rgba(26,18,8,0.88); font-weight: 700; line-height: 1.55; }
+    .date { font-size: 0.82rem; color: rgba(26,18,8,0.55); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="log">
+      <p class="date">ludofolio arcade</p>
+      <h1>YEET便 更新履歴</h1>
+      <p><a class="back" href="./">← ゲームに戻る</a></p>
+
+      <article class="entry">
+        <p class="date">2026-11-27</p>
+        <h2>v0.3 — PC操作・調整</h2>
+        <ul>
+          <li>Esc / 「やめる」でタイトルに戻れるように</li>
+          <li>荷物の飛びすぎを抑制</li>
+          <li>PCマウス掴み直し（ポインタ入力）</li>
+          <li>スマホフリックは維持</li>
+          <li>更新履歴ページを追加</li>
+        </ul>
+      </article>
+
+      <article class="entry">
+        <p class="date">2026-11-27</p>
+        <h2>v0.2 — PC対応</h2>
+        <ul>
+          <li>PCでもプレイ可能なレイアウト</li>
+          <li>Enter ではじめる / R でやり直し</li>
+        </ul>
+      </article>
+
+      <article class="entry">
+        <p class="date">2026-11-27</p>
+        <h2>v0.1 — 公開</h2>
+        <ul>
+          <li>荷物フリックでトラック荷台へぶち込む30秒バカゲー</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</body>
+</html>
