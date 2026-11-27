@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#1a1208" />
+  <meta property="og:title" content="ぶっ飛び宅配 YEET便" />
+  <meta property="og:description" content="荷物をフリックしてトラックにぶち込め。物理がちょっと狂ってるバカゲー。" />
+  <meta property="og:type" content="website" />
+  <title>ぶっ飛び宅配 YEET便</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="top">
+      <div class="brand">YEET便</div>
+      <div class="stats">
+        <span id="score">0</span>
+        <span class="sep">·</span>
+        <span id="timer">30</span>s
+      </div>
+    </header>
+
+    <canvas id="game"></canvas>
+
+    <div id="hud" class="hud">
+      <p class="hint" id="hint">荷物をつまんでフリック！</p>
+    </div>
+
+    <div id="title" class="overlay">
+      <div class="panel">
+        <p class="eyebrow">ludofolio arcade</p>
+        <h1>ぶっ飛び宅配<br /><span>YEET便</span></h1>
+        <p class="lead">物理が狂った荷物を、トラックの荷台へぶち込め。</p>
+        <button type="button" id="btn-start" class="btn primary">はじめる</button>
+      </div>
+    </div>
+
+    <div id="result" class="overlay hidden">
+      <div class="panel">
+        <p class="eyebrow">配達完了…？</p>
+        <h2 id="result-title">結果</h2>
+        <p class="big-score"><span id="final-score">0</span><small> 件届けた</small></p>
+        <p class="flavor" id="flavor"></p>
+        <div class="row">
+          <button type="button" id="btn-again" class="btn primary">もう一回</button>
+          <button type="button" id="btn-share" class="btn ghost">Xで自慢</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
